@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "purchase-request-app",
-    "slug": "purchase-request-app",
+    "name": "Pengajuan Berkah",
+    "slug": "pengajuan-berkah",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -13,9 +13,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
+      "bundleIdentifier": "com.berkahangsana.pengajuan",
       "supportsTablet": true
     },
     "android": {
+      "package": "com.berkahangsana.pengajuan",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -24,6 +26,15 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "@react-native-community/datetimepicker"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f9be6f17-198a-41e3-9beb-9495fc219b9e"
+      }
     }
   }
 }

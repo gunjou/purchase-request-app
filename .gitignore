@@ -3,6 +3,11 @@
 # dependencies
 node_modules/
 
+# Custom
+.env
+Insecure.md
+
+
 # Expo
 .expo/
 dist/
