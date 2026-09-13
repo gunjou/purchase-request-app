@@ -27,6 +27,9 @@ export default function PurchaseRequestEditPage({ navigation, route }) {
   const isDark = colorScheme === "dark";
 
   const theme = isDark ? colors.dark : colors.light;
+  const [status, setStatus] = useState("REQUESTED");
+  const canEditAll = status === "REQUESTED";
+  const canEditAttachment = true;
 
   const idRequest = route?.params?.id_request;
 
@@ -100,6 +103,8 @@ export default function PurchaseRequestEditPage({ navigation, route }) {
           getPurchaseRequestDetail(idRequest),
           getDepartments(),
         ]);
+
+        setStatus(detail.status || "REQUESTED");
 
         // ==================================================
         // DEPARTMENTS
@@ -288,54 +293,6 @@ export default function PurchaseRequestEditPage({ navigation, route }) {
   const handleSubmit = async () => {
     setError("");
 
-    // ----------------------------------------------------
-    // VALIDATION
-    // ----------------------------------------------------
-
-    if (!tanggalRequest) {
-      setError("Tanggal pengajuan wajib diisi.");
-      return;
-    }
-
-    if (!idDepartemen) {
-      setError("Departemen wajib dipilih.");
-      return;
-    }
-
-    if (!namaPekerjaan.trim()) {
-      setError("Nama pekerjaan wajib diisi.");
-      return;
-    }
-
-    if (items.length === 0) {
-      setError("Minimal harus ada satu item.");
-      return;
-    }
-
-    for (let index = 0; index < items.length; index++) {
-      const item = items[index];
-
-      if (!item.keterangan.trim()) {
-        setError(`Keterangan item ${index + 1} wajib diisi.`);
-        return;
-      }
-
-      if (!item.unit.trim()) {
-        setError(`Unit item ${index + 1} wajib diisi.`);
-        return;
-      }
-
-      if (!item.harga_satuan || Number(item.harga_satuan) <= 0) {
-        setError(`Harga satuan item ${index + 1} harus lebih dari 0.`);
-        return;
-      }
-
-      if (!item.jumlah || Number(item.jumlah) <= 0) {
-        setError(`Jumlah item ${index + 1} harus lebih dari 0.`);
-        return;
-      }
-    }
-
     if (!paymentBank.trim()) {
       setError("Bank wajib diisi.");
       return;
@@ -351,46 +308,81 @@ export default function PurchaseRequestEditPage({ navigation, route }) {
       return;
     }
 
+    if (!attachmentPath.trim() && !canEditAll) {
+      setError("Lampiran wajib tersedia.");
+      return;
+    }
+
+    if (canEditAll) {
+      if (!tanggalRequest) {
+        setError("Tanggal pengajuan wajib diisi.");
+        return;
+      }
+
+      if (!idDepartemen) {
+        setError("Departemen wajib dipilih.");
+        return;
+      }
+
+      if (!namaPekerjaan.trim()) {
+        setError("Nama pekerjaan wajib diisi.");
+        return;
+      }
+
+      if (items.length === 0) {
+        setError("Minimal harus ada satu item.");
+        return;
+      }
+
+      for (let index = 0; index < items.length; index++) {
+        const item = items[index];
+
+        if (!item.keterangan.trim()) {
+          setError(`Keterangan item ${index + 1} wajib diisi.`);
+          return;
+        }
+
+        if (!item.unit.trim()) {
+          setError(`Unit item ${index + 1} wajib diisi.`);
+          return;
+        }
+
+        if (!item.harga_satuan || Number(item.harga_satuan) <= 0) {
+          setError(`Harga satuan item ${index + 1} harus lebih dari 0.`);
+          return;
+        }
+
+        if (!item.jumlah || Number(item.jumlah) <= 0) {
+          setError(`Jumlah item ${index + 1} harus lebih dari 0.`);
+          return;
+        }
+      }
+    }
+
     try {
       setLoading(true);
 
-      // --------------------------------------------------
-      // BUILD FULL PAYLOAD
-      // --------------------------------------------------
-
       const payload = {
         tanggal_request: tanggalRequest,
-
         id_departemen: Number(idDepartemen),
-
         nama_pekerjaan: namaPekerjaan.trim(),
-
         priority,
-
         note: note.trim(),
 
         items: items.map((item, index) => ({
           item_no: Number(item.item_no || index + 1),
-
           keterangan: item.keterangan.trim(),
-
           unit: item.unit.trim(),
-
           harga_satuan: Number(item.harga_satuan),
-
           jumlah: Number(item.jumlah),
         })),
 
         payment_description: paymentDescription.trim(),
-
         payment_bank: paymentBank.trim(),
-
         payment_account_number: paymentAccountNumber.trim(),
-
         payment_account_name: paymentAccountName.trim(),
 
         attachment_name: attachmentName.trim(),
-
         attachment_path: attachmentPath.trim(),
       };
 
@@ -398,14 +390,31 @@ export default function PurchaseRequestEditPage({ navigation, route }) {
 
       navigation.goBack();
     } catch (err) {
-      console.error("Update purchase request error:", err);
+      console.error("Update purchase request error:", {
+        status: err?.response?.status,
+        data: err?.response?.data,
+        message: err?.message,
+      });
 
-      setError(
-        err?.response?.data?.message ||
-          err?.response?.data?.error ||
-          err?.message ||
-          "Gagal memperbarui pengajuan.",
-      );
+      const responseData = err?.response?.data;
+
+      if (typeof responseData === "object") {
+        const validationMessage =
+          responseData.message ||
+          responseData.error ||
+          responseData.errors ||
+          responseData.detail;
+
+        setError(
+          typeof validationMessage === "string"
+            ? validationMessage
+            : JSON.stringify(validationMessage || responseData),
+        );
+      } else {
+        setError(
+          responseData || err?.message || "Gagal memperbarui pengajuan.",
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -550,11 +559,19 @@ export default function PurchaseRequestEditPage({ navigation, route }) {
         <FieldLabel label="Tanggal Pengajuan" theme={theme} required />
 
         <Pressable
-          onPress={() => setShowDatePicker(true)}
+          onPress={() => {
+            if (!canEditAll) {
+              return;
+            }
+
+            setShowDatePicker(true);
+          }}
+          disabled={!canEditAll}
           className="flex-row items-center rounded-2xl border px-4 py-4"
           style={{
-            backgroundColor: theme.surface,
+            backgroundColor: canEditAll ? theme.surface : theme.surfaceAlt,
             borderColor: theme.border,
+            opacity: canEditAll ? 1 : 0.65,
           }}
         >
           <Ionicons
@@ -577,7 +594,7 @@ export default function PurchaseRequestEditPage({ navigation, route }) {
           <Ionicons name="chevron-down" size={18} color={theme.textMuted} />
         </Pressable>
 
-        {showDatePicker ? (
+        {showDatePicker && canEditAll ? (
           <DateTimePicker
             value={parseDateValue(tanggalRequest)}
             mode="date"
@@ -604,11 +621,19 @@ export default function PurchaseRequestEditPage({ navigation, route }) {
         />
 
         <Pressable
-          onPress={() => setDepartmentModalVisible(true)}
+          onPress={() => {
+            if (!canEditAll) {
+              return;
+            }
+
+            setDepartmentModalVisible(true);
+          }}
+          disabled={!canEditAll}
           className="flex-row items-center justify-between rounded-2xl border px-4 py-4"
           style={{
-            backgroundColor: theme.surface,
+            backgroundColor: canEditAll ? theme.surface : theme.surfaceAlt,
             borderColor: theme.border,
+            opacity: canEditAll ? 1 : 0.65,
           }}
         >
           <Text
@@ -639,10 +664,16 @@ export default function PurchaseRequestEditPage({ navigation, route }) {
         <TextInput
           value={namaPekerjaan}
           onChangeText={setNamaPekerjaan}
+          editable={canEditAll}
+          selectTextOnFocus={canEditAll}
           placeholder="Contoh: Pengadaan material proyek"
           placeholderTextColor={theme.textMuted}
           className="rounded-2xl border px-4 py-4 text-base"
-          style={inputStyle(theme)}
+          style={{
+            ...inputStyle(theme),
+            backgroundColor: canEditAll ? theme.surface : theme.surfaceAlt,
+            opacity: canEditAll ? 1 : 0.65,
+          }}
         />
 
         {/* PRIORITY */}
@@ -669,11 +700,25 @@ export default function PurchaseRequestEditPage({ navigation, route }) {
             return (
               <Pressable
                 key={item.value}
-                onPress={() => setPriority(item.value)}
+                onPress={() => {
+                  if (!canEditAll) {
+                    return;
+                  }
+
+                  setPriority(item.value);
+                }}
+                disabled={!canEditAll}
                 className="flex-1 rounded-2xl border px-3 py-3.5"
                 style={{
-                  backgroundColor: active ? colors.brand[600] : theme.surface,
+                  backgroundColor: active
+                    ? colors.brand[600]
+                    : canEditAll
+                      ? theme.surface
+                      : theme.surfaceAlt,
+
                   borderColor: active ? colors.brand[600] : theme.border,
+
+                  opacity: canEditAll ? 1 : 0.65,
                 }}
               >
                 <Text
@@ -696,12 +741,17 @@ export default function PurchaseRequestEditPage({ navigation, route }) {
         <TextInput
           value={note}
           onChangeText={setNote}
+          editable={canEditAll}
           placeholder="Tambahkan catatan jika diperlukan"
           placeholderTextColor={theme.textMuted}
           multiline
           textAlignVertical="top"
           className="min-h-[110px] rounded-2xl border px-4 py-4 text-base"
-          style={inputStyle(theme)}
+          style={{
+            ...inputStyle(theme),
+            backgroundColor: canEditAll ? theme.surface : theme.surfaceAlt,
+            opacity: canEditAll ? 1 : 0.65,
+          }}
         />
 
         {/* ==================================================
@@ -760,7 +810,7 @@ export default function PurchaseRequestEditPage({ navigation, route }) {
                 Item {index + 1}
               </Text>
 
-              {items.length > 1 ? (
+              {items.length > 1 && canEditAll ? (
                 <Pressable
                   onPress={() => removeItem(index)}
                   className="h-8 w-8 items-center justify-center rounded-xl"
@@ -790,10 +840,15 @@ export default function PurchaseRequestEditPage({ navigation, route }) {
             <TextInput
               value={item.keterangan}
               onChangeText={(value) => updateItem(index, "keterangan", value)}
+              editable={canEditAll}
               placeholder="Contoh: Semen Portland 50 kg"
               placeholderTextColor={theme.textMuted}
               className="rounded-2xl border px-4 py-4 text-base"
-              style={inputStyle(theme)}
+              style={{
+                ...inputStyle(theme),
+                backgroundColor: canEditAll ? theme.surface : theme.surfaceAlt,
+                opacity: canEditAll ? 1 : 0.65,
+              }}
             />
 
             {/* UNIT */}
@@ -803,10 +858,15 @@ export default function PurchaseRequestEditPage({ navigation, route }) {
             <TextInput
               value={item.unit}
               onChangeText={(value) => updateItem(index, "unit", value)}
+              editable={canEditAll}
               placeholder="Contoh: sak, pcs, unit"
               placeholderTextColor={theme.textMuted}
               className="rounded-2xl border px-4 py-4 text-base"
-              style={inputStyle(theme)}
+              style={{
+                ...inputStyle(theme),
+                backgroundColor: canEditAll ? theme.surface : theme.surfaceAlt,
+                opacity: canEditAll ? 1 : 0.65,
+              }}
             />
 
             {/* HARGA + JUMLAH */}
@@ -824,11 +884,18 @@ export default function PurchaseRequestEditPage({ navigation, route }) {
                       value.replace(/[^0-9]/g, ""),
                     )
                   }
+                  editable={canEditAll}
+                  keyboardType="numeric"
                   placeholder="0"
                   placeholderTextColor={theme.textMuted}
-                  keyboardType="numeric"
                   className="rounded-2xl border px-4 py-4 text-base"
-                  style={inputStyle(theme)}
+                  style={{
+                    ...inputStyle(theme),
+                    backgroundColor: canEditAll
+                      ? theme.surface
+                      : theme.surfaceAlt,
+                    opacity: canEditAll ? 1 : 0.65,
+                  }}
                 />
               </View>
 
@@ -840,11 +907,18 @@ export default function PurchaseRequestEditPage({ navigation, route }) {
                   onChangeText={(value) =>
                     updateItem(index, "jumlah", value.replace(/[^0-9]/g, ""))
                   }
+                  editable={canEditAll}
+                  keyboardType="numeric"
                   placeholder="1"
                   placeholderTextColor={theme.textMuted}
-                  keyboardType="numeric"
                   className="rounded-2xl border px-4 py-4 text-base"
-                  style={inputStyle(theme)}
+                  style={{
+                    ...inputStyle(theme),
+                    backgroundColor: canEditAll
+                      ? theme.surface
+                      : theme.surfaceAlt,
+                    opacity: canEditAll ? 1 : 0.65,
+                  }}
                 />
               </View>
             </View>
@@ -882,28 +956,30 @@ export default function PurchaseRequestEditPage({ navigation, route }) {
 
         {/* ADD ITEM */}
 
-        <Pressable
-          onPress={addItem}
-          className="mt-4 flex-row items-center justify-center rounded-2xl border border-dashed px-4 py-4"
-          style={{
-            borderColor: colors.brand[600],
-          }}
-        >
-          <Ionicons
-            name="add-circle-outline"
-            size={20}
-            color={colors.brand[600]}
-          />
-
-          <Text
-            className="ml-2 text-sm font-bold"
+        {canEditAll ? (
+          <Pressable
+            onPress={addItem}
+            className="mt-4 flex-row items-center justify-center rounded-2xl border border-dashed px-4 py-4"
             style={{
-              color: colors.brand[600],
+              borderColor: colors.brand[600],
             }}
           >
-            Tambah Item
-          </Text>
-        </Pressable>
+            <Ionicons
+              name="add-circle-outline"
+              size={20}
+              color={colors.brand[600]}
+            />
+
+            <Text
+              className="ml-2 text-sm font-bold"
+              style={{
+                color: colors.brand[600],
+              }}
+            >
+              Tambah Item
+            </Text>
+          </Pressable>
+        ) : null}
 
         {/* ==================================================
             PAYMENT
@@ -1069,7 +1145,7 @@ export default function PurchaseRequestEditPage({ navigation, route }) {
       ================================================== */}
 
       <Modal
-        visible={departmentModalVisible}
+        visible={departmentModalVisible && canEditAll}
         transparent
         animationType="fade"
         onRequestClose={() => setDepartmentModalVisible(false)}

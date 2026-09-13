@@ -162,7 +162,10 @@ export default function PurchaseRequestDetailPage({ navigation, route }) {
   // ======================================================
 
   const handleDelete = async () => {
-    if (!request?.id_request || request.status !== "REQUESTED") {
+    if (
+      !request?.id_request ||
+      !["REQUESTED", "REJECTED"].includes(request.status)
+    ) {
       return;
     }
 
@@ -787,20 +790,17 @@ function DetailHeader({
   isDark,
   onDelete,
 }) {
-  const canModify = status === "REQUESTED";
+  const canDelete = status === "REQUESTED" || status === "REJECTED";
 
   const handleEdit = () => {
-    if (!canModify) {
-      return;
-    }
-
     navigation.navigate("PurchaseRequestEdit", {
       id_request: idRequest,
+      status,
     });
   };
 
   const handleDelete = () => {
-    if (!canModify) {
+    if (!canDelete) {
       return;
     }
 
@@ -856,46 +856,39 @@ function DetailHeader({
         {/* ACTIONS */}
 
         <View className="ml-3 flex-row items-center gap-2">
-          {/* EDIT */}
+          {/* EDIT - SEMUA STATUS BISA */}
 
           <Pressable
             onPress={handleEdit}
-            disabled={!canModify}
             hitSlop={6}
             className="h-10 w-10 items-center justify-center rounded-xl"
             style={{
-              backgroundColor: canModify ? theme.surface : theme.surfaceAlt,
-              opacity: canModify ? 1 : 0.7,
+              backgroundColor: theme.surface,
             }}
           >
             <Ionicons
               name="create-outline"
               size={19}
-              color={canModify ? theme.on : theme.on}
+              color={theme.textPrimary}
             />
           </Pressable>
 
-          {/* DELETE */}
+          {/* DELETE - HANYA REQUESTED */}
 
           <Pressable
-            onPress={onDelete}
-            disabled={status !== "REQUESTED"}
+            onPress={handleDelete}
+            disabled={!canDelete}
             hitSlop={6}
             className="h-10 w-10 items-center justify-center rounded-xl"
             style={{
-              backgroundColor:
-                status === "REQUESTED" ? theme.surface : theme.surfaceAlt,
-              opacity: status === "REQUESTED" ? 1 : 0.7,
+              backgroundColor: canDelete ? theme.surface : theme.surfaceAlt,
+              opacity: canDelete ? 1 : 0.7,
             }}
           >
             <Ionicons
               name="trash-outline"
               size={19}
-              color={
-                status === "REQUESTED"
-                  ? colors.semantic.error.light
-                  : theme.textMuted
-              }
+              color={canDelete ? colors.semantic.error.light : theme.textMuted}
             />
           </Pressable>
         </View>

@@ -2,6 +2,7 @@ import React from "react";
 import { Pressable, Text, View, useColorScheme } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import DashboardPage from "../modules/dashboard/pages/DashboardPage";
 import ProfilePage from "../modules/profile/pages/ProfilePage";
@@ -83,8 +84,12 @@ export default function MainTabNavigator() {
 // ======================================================
 
 function CustomTabBar({ state, descriptors, navigation, theme, isDark }) {
+  const insets = useSafeAreaInsets();
+
   const leftRoutes = state.routes.slice(0, 2);
   const rightRoutes = state.routes.slice(2, 4);
+
+  const bottomInset = insets.bottom;
 
   return (
     <View
@@ -92,6 +97,10 @@ function CustomTabBar({ state, descriptors, navigation, theme, isDark }) {
         backgroundColor: theme.surface,
         borderTopWidth: 2,
         borderTopColor: theme.border,
+
+        // Menyesuaikan area gesture navigation atau
+        // tombol navigasi Android 3-button.
+        paddingBottom: bottomInset,
       }}
     >
       <View
@@ -172,10 +181,11 @@ function CustomTabBar({ state, descriptors, navigation, theme, isDark }) {
         }}
         style={{
           position: "absolute",
-
           alignSelf: "center",
 
-          bottom: 30,
+          // FAB tetap berada di atas tab bar,
+          // dan tidak masuk ke area system navigation.
+          bottom: bottomInset + 30,
 
           width: 60,
           height: 60,
@@ -188,7 +198,6 @@ function CustomTabBar({ state, descriptors, navigation, theme, isDark }) {
           backgroundColor: colors.brand[600],
 
           borderWidth: 2,
-
           borderColor: isDark ? colors.brand[100] : colors.brand[900],
 
           elevation: 7,
@@ -268,46 +277,12 @@ function TabBarItem({ route, state, descriptors, navigation, theme, isDark }) {
         style={{
           marginTop: 4,
           fontSize: 11,
-
           fontWeight: isFocused ? "700" : "500",
-
           color,
         }}
       >
         {options.title || route.name}
       </Text>
     </Pressable>
-  );
-}
-
-// ======================================================
-// PLACEHOLDER
-// ======================================================
-
-function PlaceholderPage() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-
-  const theme = isDark ? colors.dark : colors.light;
-
-  return (
-    <View
-      style={{
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: theme.background,
-      }}
-    >
-      <Text
-        style={{
-          color: theme.textPrimary,
-          fontSize: 18,
-          fontWeight: "700",
-        }}
-      >
-        Halaman belum tersedia
-      </Text>
-    </View>
   );
 }
